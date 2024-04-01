@@ -80,7 +80,7 @@ MiniGram works just as well in asynchronous mode, making it easy to integrate wi
 
 ## Contributing 🤝
 
-We love contributions! If you have any ideas, suggestions, or bug reports, please open an issue or submit a pull request on our [GitHub repository](https://github.com/bobuk/minigram). Let's make MiniGram even better together! 💪
+We love contributions! If you have any ideas, suggestions, or bug reports, please open an issue or submit a pull request on our [GitHub repository](https://github.com/bobuk/minigram-py). Let's make MiniGram even better together! 💪
 
 ## License 📄
 
