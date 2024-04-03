@@ -110,7 +110,7 @@ class MiniGram:
         while True:
             updates = await self.get_updates()
             for update in updates.get("result", []):
-                await self.handler(update)
+                await self.incoming(update)
                 self.last_updated_id = update["update_id"]
             await asyncio.sleep(0.1)
 
@@ -129,6 +129,7 @@ class MiniGram:
         return await self.req(
             "sendMessage", chat_id=chat_id, text=text, parse_mode=parse_mode, **kwargs
         )
+
     @ass
     async def reply_to_message(self, reply: MiniGramMessage):
         reply_params = {
@@ -137,16 +138,18 @@ class MiniGram:
             "reply_to_message_id": reply.message_id,
         }
         return await self.req("sendMessage", **reply_params)
+
     @ass
     async def set_webhook(self, url: str) -> dict:
         return await self.req("setWebhook", url=url)
+
     @ass
     async def delete_webhook(self) -> dict:
         return await self.req("deleteWebhook")
+
     @ass
     async def get_webhook_info(self) -> dict:
         return await self.req("getWebhookInfo")
-
 
     async def async_handler(self, data: dict) -> None:
         msg = MiniGramMessage(data)
@@ -159,5 +162,6 @@ class MiniGram:
         res = self.incoming(msg)
         if res:
             self.reply_to_message(res)
+
 
 CURRENT: MiniGram | None = None

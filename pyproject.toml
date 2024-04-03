@@ -1,6 +1,6 @@
 [project]
 name = "minigram-py"
-version = "0.1.0"
+version = "0.1.1"
 description = "minimalistic telegram bot framework that can be used in AWS Lambda or anywhere"
 authors = [
     {name = "Grigory Bakunov", email = "bobuk@rubedo.cloud"},
