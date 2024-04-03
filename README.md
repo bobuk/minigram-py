@@ -28,7 +28,7 @@ Using MiniGram is as easy as 1-2-3! Here are a few examples to get you started:
 from minigram import MiniGram
 
 class MyAwesomeBot(MiniGram):
-    def incoming(self, msg):
+    async def incoming(self, msg):
         if msg.text == "/start":
             return msg.reply("Welcome to my awesome bot! 🎉")
 

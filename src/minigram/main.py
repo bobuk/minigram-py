@@ -110,7 +110,10 @@ class MiniGram:
         while True:
             updates = await self.get_updates()
             for update in updates.get("result", []):
-                await self.incoming(update)
+                msg = MiniGramMessage(update)
+                res = await self.incoming(msg)
+                if res:
+                    await self.reply_to_message(res)
                 self.last_updated_id = update["update_id"]
             await asyncio.sleep(0.1)
 
