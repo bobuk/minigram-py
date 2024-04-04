@@ -101,7 +101,6 @@ class MiniGram:
     @ass
     async def req(self, method: str, **kwargs) -> dict:
         url = f"https://api.telegram.org/bot{self.key}/{method}"
-        print("log2", url, kwargs)
         code, response = await req(url, kwargs)
         return response
 
