@@ -115,8 +115,6 @@ class MiniGram:
                     res = await self.incoming(msg)
                     if res:
                         await self.reply_to_message(res)
-                elif "edited_message" in update:
-                    pass
                 else:
                     logging.debug(update)
                 self.last_updated_id = update["update_id"]
