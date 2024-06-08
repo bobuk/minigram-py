@@ -1,10 +1,10 @@
 import asyncio
 import re
+import time
 from copy import deepcopy
 from typing import Optional, Any
 
-from .request import req
-from .ass import ass
+from .request import sync_req, async_req
 
 
 def parse_markdown(text: str, p: bool = False) -> str:
@@ -72,39 +72,35 @@ class MiniGramMessage:
         return self
 
 
-class MiniGram:
+class AsyncMiniGram:
     def __init__(self, key: str):
-        global CURRENT
+        global CURRENT_ASYNC
         self.key = key
         self.last_updated_id = 0
         self.post_init()
-        CURRENT = self
+        CURRENT_ASYNC = self
 
     def post_init(self):
         pass
 
-    @ass
     async def shutdown(self):
         await self.delete_webhook()
 
-    @ass
     async def incoming(self, msg: MiniGramMessage) -> Optional[MiniGramMessage]:
         pass
 
     @classmethod
-    def current(cls) -> "MiniGram":
-        global CURRENT
-        if CURRENT is None:
+    def current(cls) -> "AsyncMiniGram":
+        global CURRENT_ASYNC
+        if CURRENT_ASYNC is None:
             raise ValueError("No current MiniGram")
-        return CURRENT
+        return CURRENT_ASYNC
 
-    @ass
     async def req(self, method: str, **kwargs) -> dict:
         url = f"https://api.telegram.org/bot{self.key}/{method}"
-        code, response = await req(url, kwargs)
+        code, response = await async_req(url, kwargs)
         return response
 
-    @ass
     async def start_polling(self):
         while True:
             updates = await self.get_updates()
@@ -116,7 +112,6 @@ class MiniGram:
                 self.last_updated_id = update["update_id"]
             await asyncio.sleep(0.1)
 
-    @ass
     async def get_updates(self) -> dict:
         if self.last_updated_id != 0:
             return await self.req(
@@ -124,7 +119,6 @@ class MiniGram:
             )
         return await self.req("getUpdates", timeout=60)
 
-    @ass
     async def send_text(
         self, chat_id: int, text: str, parse_mode: str = "HTML", **kwargs
     ) -> dict:
@@ -132,7 +126,6 @@ class MiniGram:
             "sendMessage", chat_id=chat_id, text=text, parse_mode=parse_mode, **kwargs
         )
 
-    @ass
     async def reply_to_message(self, reply: MiniGramMessage):
         reply_params = {
             "chat_id": reply.chat_id,
@@ -141,15 +134,12 @@ class MiniGram:
         }
         return await self.req("sendMessage", **reply_params)
 
-    @ass
     async def set_webhook(self, url: str) -> dict:
         return await self.req("setWebhook", url=url)
 
-    @ass
     async def delete_webhook(self) -> dict:
         return await self.req("deleteWebhook")
 
-    @ass
     async def get_webhook_info(self) -> dict:
         return await self.req("getWebhookInfo")
 
@@ -159,6 +149,78 @@ class MiniGram:
         if res:
             await self.reply_to_message(res)
 
+
+class MiniGram:
+    def __init__(self, key: str):
+        global CURRENT_SYNC
+        self.key = key
+        self.last_updated_id = 0
+        self.post_init()
+        CURRENT_SYNC = self
+
+    def post_init(self):
+        pass
+
+    def shutdown(self):
+        self.delete_webhook()
+
+    def incoming(self, msg: MiniGramMessage) -> Optional[MiniGramMessage]:
+        pass
+
+    @classmethod
+    def current(cls) -> "MiniGram":
+        global CURRENT_SYNC
+        if CURRENT_SYNC is None:
+            raise ValueError("No current MiniGram")
+        return CURRENT_SYNC
+
+    def req(self, method: str, **kwargs) -> dict:
+        url = f"https://api.telegram.org/bot{self.key}/{method}"
+        code, response = sync_req(url, kwargs)
+        return response
+
+    def start_polling(self):
+        while True:
+            updates = self.get_updates()
+            for update in updates.get("result", []):
+                msg = MiniGramMessage(update)
+                res = self.incoming(msg)
+                if res:
+                    self.reply_to_message(res)
+                self.last_updated_id = update["update_id"]
+            time.sleep(0.01)
+
+    def get_updates(self) -> dict:
+        if self.last_updated_id != 0:
+            return self.req(
+                "getUpdates", offset=self.last_updated_id + 1, timeout=60
+            )
+        return self.req("getUpdates", timeout=60)
+
+    def send_text(
+        self, chat_id: int, text: str, parse_mode: str = "HTML", **kwargs
+    ) -> dict:
+        return self.req(
+            "sendMessage", chat_id=chat_id, text=text, parse_mode=parse_mode, **kwargs
+        )
+
+    def reply_to_message(self, reply: MiniGramMessage):
+        reply_params = {
+            "chat_id": reply.chat_id,
+            "text": reply.text,
+            "reply_to_message_id": reply.message_id,
+        }
+        return self.req("sendMessage", **reply_params)
+
+    def set_webhook(self, url: str) -> dict:
+        return self.req("setWebhook", url=url)
+
+    def delete_webhook(self) -> dict:
+        return self.req("deleteWebhook")
+
+    def get_webhook_info(self) -> dict:
+        return self.req("getWebhookInfo")
+
     def sync_handler(self, data: dict) -> None:
         msg = MiniGramMessage(data)
         res = self.incoming(msg)
@@ -166,4 +228,5 @@ class MiniGram:
             self.reply_to_message(res)
 
 
-CURRENT: MiniGram | None = None
+CURRENT_ASYNC: AsyncMiniGram | None = None
+CURRENT_SYNC: MiniGram | None = None

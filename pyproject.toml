@@ -1,6 +1,6 @@
 [project]
 name = "minigram-py"
-version = "0.1.2"
+version = "0.2.0"
 description = "minimalistic telegram bot framework that can be used in AWS Lambda or anywhere"
 authors = [
     {name = "Grigory Bakunov", email = "bobuk@rubedo.cloud"},
@@ -18,6 +18,10 @@ starlette = [
 aiohttp = [
     "aiohttp>=3.9.3",
 ]
+httpx = [
+    "httpx>=0.18.0",
+]
+
 [build-system]
 requires = ["pdm-backend"]
 build-backend = "pdm.backend"

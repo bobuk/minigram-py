@@ -5,16 +5,16 @@ import json
 import ssl
 from typing import Dict, Optional, Tuple
 from urllib.parse import urlparse
-from .ass import ass
+
 if importlib.util.find_spec("aiohttp"):
     import aiohttp
 
-    @ass
-    async def req(url: str, data: Optional[dict] = None) -> Tuple[int, dict]:
+
+    async def async_req(url: str, data: Optional[dict] = None) -> Tuple[int, dict]:
         try:
             async with aiohttp.ClientSession() as client:
                 async with client.post(
-                    url, json=data, headers={"content-type": "application/json"}
+                        url, json=data, headers={"content-type": "application/json"}
                 ) as response:
                     return response.status, await response.json()
         except asyncio.exceptions.TimeoutError:
@@ -23,8 +23,8 @@ if importlib.util.find_spec("aiohttp"):
 elif importlib.util.find_spec("httpx"):
     import httpx
 
-    @ass
-    async def req(url: str, data: Optional[dict] = None) -> Tuple[int, dict]:
+
+    async def async_req(url: str, data: Optional[dict] = None) -> Tuple[int, dict]:
         try:
             async with httpx.AsyncClient() as client:
                 response = await client.post(
@@ -37,9 +37,23 @@ elif importlib.util.find_spec("httpx"):
         except httpx.ReadTimeout:
             return 200, {"result": []}
 
+
+    def sync_req(url: str, data: Optional[dict] = None) -> Tuple[int, dict]:
+        try:
+            with httpx.Client() as client:
+                response = client.post(
+                    url,
+                    json=data,
+                    headers={"content-type": "application/json"},
+                    timeout=180,
+                )
+                return response.status_code, response.json()
+        except httpx.ReadTimeout:
+            return 200, {"result": []}
+
 else:
-    @ass
-    async def req(url: str, data: Optional[Dict] = None) -> Tuple[int, Dict]:
+
+    async def async_req(url: str, data: Optional[Dict] = None) -> Tuple[int, Dict]:
         parsed_url = urlparse(url)
         host, port = parsed_url.hostname, parsed_url.port or (443 if parsed_url.scheme == "https" else 80)
 
@@ -60,7 +74,10 @@ else:
         rb += "\r\n\r\n"
         request = rb.encode("utf-8") + body
 
-        reader, writer = await asyncio.open_connection(host, port, ssl=ssl.create_default_context() if parsed_url.scheme == "https" else None)
+        scheme = ssl.create_default_context() if parsed_url.scheme == "https" else None
+        reader, writer = await asyncio.open_connection(host,
+                                                       port,
+                                                       ssl=scheme)
         writer.write(request)
         await writer.drain()
 
@@ -88,3 +105,19 @@ else:
 
         response_json = json.loads(response_data.decode("utf-8"))
         return status_code, response_json
+
+
+    import urllib.request
+    import urllib.error
+
+
+    def sync_req(url: str, data: Optional[dict] = None) -> Tuple[int, dict]:
+        headers = {"content-type": "application/json"}
+        try:
+            req = urllib.request.Request(url, data=json.dumps(data).encode('utf-8'), headers=headers)
+            with urllib.request.urlopen(req, timeout=180) as response:
+                status_code = response.getcode()
+                response_data = response.read()
+                return status_code, json.loads(response_data.decode('utf-8'))
+        except urllib.error.URLError:
+            return 200, {"result": []}

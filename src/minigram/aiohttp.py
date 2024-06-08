@@ -1,9 +1,9 @@
 import aiohttp.web
 
-from .main import MiniGram
+from .main import AsyncMiniGram
 
 
-class AioMiniGram(MiniGram):
+class AioMiniGram(AsyncMiniGram):
     async def aiohttp_handler(
             self, request: aiohttp.web.Request
     ) -> aiohttp.web.Response:

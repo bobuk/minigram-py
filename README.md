@@ -6,7 +6,7 @@ MiniGram is an ultraminimalistic Python library for building Telegram bots that'
 
 -   Lightweight and minimalistic 🍃
 -   Works in both synchronous and asynchronous modes ⚡️
--   Seamless integration with popular web libraries like Starlette and aiohttp 🌐
+-   Seamless integration with popular web libraries like Starlette/FastAPI and aiohttp 🌐
 -   Easy to use and understand API 😊
 -   Perfect for deploying bots in restricted environments like AWS Lambdas 🔒
 
@@ -28,9 +28,10 @@ Using MiniGram is as easy as 1-2-3! Here are a few examples to get you started:
 from minigram import MiniGram
 
 class MyAwesomeBot(MiniGram):
-    async def incoming(self, msg):
+    def incoming(self, msg):
         if msg.text == "/start":
             return msg.reply("Welcome to my awesome bot! 🎉")
+        return self.sent_text(msg.chat.id, "I don't understand that command. 😕")
 
 bot = MyAwesomeBot("YOUR_BOT_TOKEN")
 bot.start_polling()
@@ -43,7 +44,6 @@ In just a few lines of code, you've created a bot that responds to the "/start" 
 ```python
 from starlette.applications import Starlette
 from starlette.routing import Route
-from minigram import MiniGram
 from minigram import StarletteMiniGram
 
 class MyStarletteBot(StarletteMiniGram):
@@ -64,16 +64,17 @@ This example shows how seamlessly MiniGram integrates with Starlette, allowing y
 ### Asynchronous Mode
 
 ```python
-from minigram import MiniGram
+from minigram import AsyncMiniGram
 
-class MySyncBot(MiniGram):
+class MyAsyncBot(AsyncMiniGram):
     async def incoming(self, msg):
         if msg.text == "/sync":
-            return msg.reply("I'm a synchronous bot! ⚙️")
+            return msg.reply("I'm a asynchronous bot, for sure! ⚙️")
 
 async def main():
-    bot = MySyncBot("YOUR_BOT_TOKEN")
+    bot = MyAsyncBot("YOUR_BOT_TOKEN")
     await bot.sent_text(YOUR_CHAT_ID, "Hello from an asynchronous bot! 🚀")
+    await bot.start_polling()
 ```
 
 MiniGram works just as well in asynchronous mode, making it easy to integrate with your existing async application. 🎛️

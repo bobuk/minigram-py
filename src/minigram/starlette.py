@@ -1,10 +1,9 @@
 from starlette.requests import Request
 from starlette.responses import JSONResponse, Response
+from .main import AsyncMiniGram
 
-from .main import MiniGram
 
-
-class StarletteMiniGram(MiniGram):
+class StarletteMiniGram(AsyncMiniGram):
     async def starlette_handler(
             self, request: Request
     ) -> Response:
