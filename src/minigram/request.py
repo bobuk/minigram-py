@@ -74,7 +74,7 @@ else:
         rb += "\r\n\r\n"
         request = rb.encode("utf-8") + body
 
-        scheme = ssl.create_default_context() if parsed_url.scheme == "https" else None
+        scheme = ssl._create_unverified_context() if parsed_url.scheme == "https" else None
         reader, writer = await asyncio.open_connection(host,
                                                        port,
                                                        ssl=scheme)
@@ -114,8 +114,9 @@ else:
     def sync_req(url: str, data: Optional[dict] = None) -> Tuple[int, dict]:
         headers = {"content-type": "application/json"}
         try:
+            ssl_context = ssl._create_unverified_context()
             req = urllib.request.Request(url, data=json.dumps(data).encode('utf-8'), headers=headers)
-            with urllib.request.urlopen(req, timeout=180) as response:
+            with urllib.request.urlopen(req, timeout=180, context=ssl_context) as response:
                 status_code = response.getcode()
                 response_data = response.read()
                 return status_code, json.loads(response_data.decode('utf-8'))
