@@ -31,7 +31,7 @@ class MyAwesomeBot(MiniGram):
     def incoming(self, msg):
         if msg.text == "/start":
             return msg.reply("Welcome to my awesome bot! 🎉")
-        return self.sent_text(msg.chat.id, "I don't understand that command. 😕")
+        self.send_text(msg.chat_id, "I don't understand that command. 😕")
 
 bot = MyAwesomeBot("YOUR_BOT_TOKEN")
 bot.start_polling()
@@ -64,6 +64,7 @@ This example shows how seamlessly MiniGram integrates with Starlette, allowing y
 ### Asynchronous Mode
 
 ```python
+import asyncio
 from minigram import AsyncMiniGram
 
 class MyAsyncBot(AsyncMiniGram):
@@ -73,8 +74,11 @@ class MyAsyncBot(AsyncMiniGram):
 
 async def main():
     bot = MyAsyncBot("YOUR_BOT_TOKEN")
-    await bot.sent_text(YOUR_CHAT_ID, "Hello from an asynchronous bot! 🚀")
+    await bot.send_text(YOUR_CHAT_ID, "Hello from an asynchronous bot! 🚀")
     await bot.start_polling()
+
+if __name__ == "__main__":
+    asyncio.run(main())
 ```
 
 MiniGram works just as well in asynchronous mode, making it easy to integrate with your existing async application. 🎛️
