@@ -1,8 +1,8 @@
 import importlib.util
 
-from .main import MiniGram, MiniGramMessage
+from .main import MiniGram, MiniGramMessage, AsyncMiniGram
 
-__all__ = ["MiniGram", "MiniGramMessage"]
+__all__ = ["MiniGram", "MiniGramMessage", "AsyncMiniGram"]
 
 if importlib.util.find_spec("aiohttp"):
     from .aiohttp import AioMiniGram  # noqa

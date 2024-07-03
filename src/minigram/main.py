@@ -2,7 +2,7 @@ import asyncio
 import re
 import time
 from copy import deepcopy
-from typing import Optional, Any
+from typing import Optional, Tuple, Any
 
 from .request import sync_req, async_req
 
@@ -71,22 +71,49 @@ class MiniGramMessage:
         self.text = text
         return self
 
-
-class AsyncMiniGram:
+class BaseMiniGram:
     def __init__(self, key: str):
-        global CURRENT_ASYNC
         self.key = key
         self.last_updated_id = 0
         self.post_init()
-        CURRENT_ASYNC = self
+        self.allowed_updates = [
+            "message",
+            "edited_message",
+            "channel_post",
+            "edited_channel_post",
+            "inline_query",
+            "chosen_inline_result",
+            "callback_query",
+            "shipping_query",
+            "pre_checkout_query",
+            "poll",
+            "poll_answer",
+            "my_chat_member",
+            "chat_member",
+            "chat_join_request",
+            "message_reaction",
+            "message_reaction_count",
+            "chat_boost",
+            "removed_chat_boost"
+        ]
 
     def post_init(self):
-        pass
+            pass
+
+
+class AsyncMiniGram(BaseMiniGram):
+    def __init__(self, key: str):
+        global CURRENT_ASYNC
+        super().__init__(key)
+        CURRENT_ASYNC = self
 
     async def shutdown(self):
         await self.delete_webhook()
 
     async def incoming(self, msg: MiniGramMessage) -> Optional[MiniGramMessage]:
+        pass
+
+    async def edited(self, msg: MiniGramMessage) -> Optional[MiniGramMessage]:
         pass
 
     @classmethod
@@ -105,19 +132,46 @@ class AsyncMiniGram:
         while True:
             updates = await self.get_updates()
             for update in updates.get("result", []):
-                msg = MiniGramMessage(update)
-                res = await self.incoming(msg)
-                if res:
-                    await self.reply_to_message(res)
+                update_type, update_data = self._identify_update_type(update)
+                if update_type:
+                    await self._process_update(update_type, update_data)
                 self.last_updated_id = update["update_id"]
             await asyncio.sleep(0.1)
 
+    def _identify_update_type(self, update: dict) -> Tuple[Optional[str], Optional[dict]]:
+        update_types = self.allowed_updates
+        for update_type in update_types:
+            if update_type in update:
+                return update_type, update[update_type]
+        return None, None
+
+    async def _process_update(self, update_type: str, update_data: dict):
+        handler_method = f"handle_{update_type}"
+        if hasattr(self, handler_method):
+            await getattr(self, handler_method)(update_data)
+        else:
+            print(f"No handler implemented for update type: {update_type}")
+
+    async def handle_message(self, message_data: dict):
+        msg = MiniGramMessage({"message": message_data})
+        res = await self.incoming(msg)
+        if res:
+            await self.reply_to_message(res)
+
+    async def handle_edited_message(self, message_data: dict):
+        msg = MiniGramMessage({"message": message_data})
+        res = await self.edited(msg)
+        if res:
+            await self.reply_to_message(res)
+
     async def get_updates(self) -> dict:
+        params = {
+            "timeout": 60,
+            "allowed_updates": self.allowed_updates
+        }
         if self.last_updated_id != 0:
-            return await self.req(
-                "getUpdates", offset=self.last_updated_id + 1, timeout=60
-            )
-        return await self.req("getUpdates", timeout=60)
+            params["offset"] = self.last_updated_id + 1
+        return await self.req("getUpdates", **params)
 
     async def send_text(
         self, chat_id: int, text: str, parse_mode: str = "HTML", **kwargs
@@ -150,21 +204,19 @@ class AsyncMiniGram:
             await self.reply_to_message(res)
 
 
-class MiniGram:
+class MiniGram(BaseMiniGram):
     def __init__(self, key: str):
         global CURRENT_SYNC
-        self.key = key
-        self.last_updated_id = 0
-        self.post_init()
+        super().__init__(key)
         CURRENT_SYNC = self
-
-    def post_init(self):
-        pass
 
     def shutdown(self):
         self.delete_webhook()
 
     def incoming(self, msg: MiniGramMessage) -> Optional[MiniGramMessage]:
+        pass
+
+    def edited(self, msg: MiniGramMessage) -> Optional[MiniGramMessage]:
         pass
 
     @classmethod
@@ -183,19 +235,46 @@ class MiniGram:
         while True:
             updates = self.get_updates()
             for update in updates.get("result", []):
-                msg = MiniGramMessage(update)
-                res = self.incoming(msg)
-                if res:
-                    self.reply_to_message(res)
+                update_type, update_data = self._identify_update_type(update)
+                if update_type:
+                    self._process_update(update_type, update_data)
                 self.last_updated_id = update["update_id"]
             time.sleep(0.01)
 
+    def _identify_update_type(self, update: dict) -> Tuple[Optional[str], Optional[dict]]:
+        update_types = self.allowed_updates
+        for update_type in update_types:
+            if update_type in update:
+                return update_type, update[update_type]
+        return None, None
+
+    def _process_update(self, update_type: str, update_data: dict):
+        handler_method = f"handle_{update_type}"
+        if hasattr(self, handler_method):
+            getattr(self, handler_method)(update_data)
+        else:
+            print(f"No handler implemented for update type: {update_type}")
+
+    def handle_message(self, message_data: dict):
+        msg = MiniGramMessage({"message": message_data})
+        res = self.incoming(msg)
+        if res:
+            self.reply_to_message(res)
+
+    def handle_edited_message(self, message_data: dict):
+        msg = MiniGramMessage({"message": message_data})
+        res = self.edited(msg)
+        if res:
+            self.reply_to_message(res)
+
     def get_updates(self) -> dict:
+        params = {
+            "timeout": 60,
+            "allowed_updates": self.allowed_updates
+        }
         if self.last_updated_id != 0:
-            return self.req(
-                "getUpdates", offset=self.last_updated_id + 1, timeout=60
-            )
-        return self.req("getUpdates", timeout=60)
+            params["offset"] = self.last_updated_id + 1
+        return self.req("getUpdates", **params)
 
     def send_text(
         self, chat_id: int, text: str, parse_mode: str = "HTML", **kwargs

@@ -33,6 +33,9 @@ class MyAwesomeBot(MiniGram):
             return msg.reply("Welcome to my awesome bot! 🎉")
         self.send_text(msg.chat_id, "I don't understand that command. 😕")
 
+    def edited(self, msg):
+        return msg.reply("I see you edited the message!")
+
 bot = MyAwesomeBot("YOUR_BOT_TOKEN")
 bot.start_polling()
 ```
@@ -71,6 +74,9 @@ class MyAsyncBot(AsyncMiniGram):
     async def incoming(self, msg):
         if msg.text == "/sync":
             return msg.reply("I'm a asynchronous bot, for sure! ⚙️")
+
+    async def edited(self, msg):
+        return msg.reply("I see you edited the message!")
 
 async def main():
     bot = MyAsyncBot("YOUR_BOT_TOKEN")
