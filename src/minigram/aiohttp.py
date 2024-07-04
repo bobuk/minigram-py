@@ -5,7 +5,7 @@ from .main import AsyncMiniGram
 
 class AioMiniGram(AsyncMiniGram):
     async def aiohttp_handler(
-            self, request: aiohttp.web.Request
+        self, request: aiohttp.web.Request
     ) -> aiohttp.web.Response:
         try:
             data = await request.json()
