@@ -8,7 +8,7 @@ from typing import Optional, Any
 
 from .request import sync_req, async_req
 
-DEBUG = True
+DEBUG = False
 ALLOWED_UPDATES = [
     "message",
     "edited_message",
