@@ -1,10 +1,41 @@
 import asyncio
+import json
 import re
 import time
+
 from copy import deepcopy
-from typing import Optional, Tuple, Any
+from typing import Optional, Any
 
 from .request import sync_req, async_req
+
+DEBUG = False
+ALLOWED_UPDATES = [
+    "message",
+    "edited_message",
+    "channel_post",
+    "edited_channel_post",
+    "inline_query",
+    "chosen_inline_result",
+    "callback_query",
+    "shipping_query",
+    "pre_checkout_query",
+    "poll",
+    "poll_answer",
+    "my_chat_member",
+    "chat_member",
+    "chat_join_request",
+    "message_reaction",
+    "message_reaction_count",
+    "chat_boost",
+    "removed_chat_boost",
+]
+
+# ANSI color codes
+RED = "\033[91m"
+GREEN = "\033[92m"
+YELLOW = "\033[93m"
+BLUE = "\033[94m"
+RESET = "\033[0m"  # Reset to default color
 
 
 def parse_markdown(text: str, p: bool = False) -> str:
@@ -52,53 +83,54 @@ def extract_value(data: dict[str, Any], dotted: str, default: Any = None) -> Any
     return extract_value(data[segment], other)
 
 
-class MiniGramMessage:
+def now():
+    return time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
+
+
+def debug(color, title, data):
+    if DEBUG:
+        print(f"\n{color}{now()} - {title}{RESET}\n{json.dumps(data, indent=2)}")
+
+
+class MiniGramUpdate:
     def __init__(self, data: dict):
-        self.data = deepcopy(data)
-        if "message" not in self.data:
-            raise ValueError("no `message` in your data!")
-        msg = self.data["message"]
-        self.chat_id = extract_value(msg, "chat.id")
-        self.text = extract_value(msg, "text")
-        self.message_id = extract_value(msg, "message_id")
-        self.from_user = extract_value(msg, "from", {})
-        self.from_id = self.from_user.get("id")
+        for update_type in ALLOWED_UPDATES:
+            if update_type in data:
+                self.update_type = update_type
+                self.payload = deepcopy(data[update_type])
+                break
+        if not hasattr(self, "update_type"):
+            raise ValueError("unknown or unallowed update_type")
+
+        self.update_id = extract_value(data, "update_id")
+        self.chat_id = extract_value(self.payload, "chat.id")
+        self.text = extract_value(self.payload, "text")
+        self.message_id = extract_value(self.payload, "message_id")
+        self.from_user = extract_value(self.payload, "from", {})
+        self.user = extract_value(self.payload, "user", {})
+        if len(self.from_user) > 0:
+            self.from_id = self.from_user.get("id")
+        else:
+            self.from_id = self.user.get("id")
+
+        debug(RED, "raw update:", data)
+        delattr(self, "payload")
+        print(self)
 
     def __repr__(self):
-        return f"<MiniGramMessage from {self.from_id}/{self.from_user} {self.chat_id} {self.message_id} {self.text}>"
+        return f"<MiniGramUpdate with type `{self.update_type}` from {self.from_id}/{self.from_user} {self.chat_id} {self.message_id} {self.text}>"
 
-    def reply(self, text: str) -> "MiniGramMessage":
-        self.text = text
-        return self
 
 class BaseMiniGram:
     def __init__(self, key: str):
         self.key = key
         self.last_updated_id = 0
         self.post_init()
-        self.allowed_updates = [
-            "message",
-            "edited_message",
-            "channel_post",
-            "edited_channel_post",
-            "inline_query",
-            "chosen_inline_result",
-            "callback_query",
-            "shipping_query",
-            "pre_checkout_query",
-            "poll",
-            "poll_answer",
-            "my_chat_member",
-            "chat_member",
-            "chat_join_request",
-            "message_reaction",
-            "message_reaction_count",
-            "chat_boost",
-            "removed_chat_boost"
-        ]
+        self.allowed_updates = ALLOWED_UPDATES
+        print(f"Start time: {now()}\nDEBUG is {DEBUG}")
 
     def post_init(self):
-            pass
+        pass
 
 
 class AsyncMiniGram(BaseMiniGram):
@@ -110,12 +142,6 @@ class AsyncMiniGram(BaseMiniGram):
     async def shutdown(self):
         await self.delete_webhook()
 
-    async def incoming(self, msg: MiniGramMessage) -> Optional[MiniGramMessage]:
-        pass
-
-    async def edited(self, msg: MiniGramMessage) -> Optional[MiniGramMessage]:
-        pass
-
     @classmethod
     def current(cls) -> "AsyncMiniGram":
         global CURRENT_ASYNC
@@ -124,54 +150,42 @@ class AsyncMiniGram(BaseMiniGram):
         return CURRENT_ASYNC
 
     async def req(self, method: str, **kwargs) -> dict:
+        if method != "getUpdates" and DEBUG:
+            tmp = deepcopy(kwargs)
+            tmp["method"] = method
+            debug(YELLOW, "send request:", tmp)
+
         url = f"https://api.telegram.org/bot{self.key}/{method}"
         code, response = await async_req(url, kwargs)
+
+        if method != "getUpdates" and DEBUG:
+            tmp = deepcopy(response)
+            tmp["code"] = code
+            debug(GREEN, "get response:", tmp)
+
         return response
+
+    async def get_updates(self) -> dict:
+        params = {"timeout": 60, "allowed_updates": self.allowed_updates}
+        if self.last_updated_id != 0:
+            params["offset"] = self.last_updated_id + 1
+        return await self.req("getUpdates", **params)
 
     async def start_polling(self):
         while True:
             updates = await self.get_updates()
             for update in updates.get("result", []):
-                update_type, update_data = self._identify_update_type(update)
-                if update_type:
-                    await self._process_update(update_type, update_data)
-                self.last_updated_id = update["update_id"]
+                if update["update_id"] > self.last_updated_id:
+                    await self.handle_update(MiniGramUpdate(update))
+                    self.last_updated_id = update["update_id"]
+                else:
+                    print(
+                        f"{RED}{now()} - skip update with update_id <= self.last_updated_id {RESET}"
+                    )
             await asyncio.sleep(0.1)
 
-    def _identify_update_type(self, update: dict) -> Tuple[Optional[str], Optional[dict]]:
-        update_types = self.allowed_updates
-        for update_type in update_types:
-            if update_type in update:
-                return update_type, update[update_type]
-        return None, None
-
-    async def _process_update(self, update_type: str, update_data: dict):
-        handler_method = f"handle_{update_type}"
-        if hasattr(self, handler_method):
-            await getattr(self, handler_method)(update_data)
-        else:
-            print(f"No handler implemented for update type: {update_type}")
-
-    async def handle_message(self, message_data: dict):
-        msg = MiniGramMessage({"message": message_data})
-        res = await self.incoming(msg)
-        if res:
-            await self.reply_to_message(res)
-
-    async def handle_edited_message(self, message_data: dict):
-        msg = MiniGramMessage({"message": message_data})
-        res = await self.edited(msg)
-        if res:
-            await self.reply_to_message(res)
-
-    async def get_updates(self) -> dict:
-        params = {
-            "timeout": 60,
-            "allowed_updates": self.allowed_updates
-        }
-        if self.last_updated_id != 0:
-            params["offset"] = self.last_updated_id + 1
-        return await self.req("getUpdates", **params)
+    async def handle_update(self, update: MiniGramUpdate):
+        pass
 
     async def send_text(
         self, chat_id: int, text: str, parse_mode: str = "HTML", **kwargs
@@ -180,13 +194,31 @@ class AsyncMiniGram(BaseMiniGram):
             "sendMessage", chat_id=chat_id, text=text, parse_mode=parse_mode, **kwargs
         )
 
-    async def reply_to_message(self, reply: MiniGramMessage):
-        reply_params = {
-            "chat_id": reply.chat_id,
-            "text": reply.text,
-            "reply_to_message_id": reply.message_id,
+    async def reply(self, update: MiniGramUpdate, text: str = "") -> dict:
+        params = {
+            "chat_id": update.chat_id,
+            "reply_to_message_id": update.message_id,
+            "text": text,
         }
-        return await self.req("sendMessage", **reply_params)
+        return await self.req("sendMessage", **params)
+
+    async def send_chat_action(self, chat_id, action, **kwargs):
+        if isinstance(chat_id, MiniGramUpdate):
+            chat_id = chat_id.chat_id
+        return await self.req(
+            "sendChatAction", chat_id=chat_id, action=action, **kwargs
+        )
+
+    async def set_message_reaction(
+        self, update: MiniGramUpdate, reaction: str = "", is_big=False
+    ):
+        params = {
+            "chat_id": update.chat_id,
+            "message_id": update.message_id,
+            "reaction": [{"type": "emoji", "emoji": reaction}],
+            "is_big": is_big,
+        }
+        return await self.req("setMessageReaction", **params)
 
     async def set_webhook(self, url: str) -> dict:
         return await self.req("setWebhook", url=url)
@@ -198,10 +230,7 @@ class AsyncMiniGram(BaseMiniGram):
         return await self.req("getWebhookInfo")
 
     async def async_handler(self, data: dict) -> None:
-        msg = MiniGramMessage(data)
-        res = await self.incoming(msg)
-        if res:
-            await self.reply_to_message(res)
+        await self.handle_update(MiniGramUpdate(data))
 
 
 class MiniGram(BaseMiniGram):
@@ -213,12 +242,6 @@ class MiniGram(BaseMiniGram):
     def shutdown(self):
         self.delete_webhook()
 
-    def incoming(self, msg: MiniGramMessage) -> Optional[MiniGramMessage]:
-        pass
-
-    def edited(self, msg: MiniGramMessage) -> Optional[MiniGramMessage]:
-        pass
-
     @classmethod
     def current(cls) -> "MiniGram":
         global CURRENT_SYNC
@@ -227,54 +250,42 @@ class MiniGram(BaseMiniGram):
         return CURRENT_SYNC
 
     def req(self, method: str, **kwargs) -> dict:
+        if method != "getUpdates" and DEBUG:
+            tmp = deepcopy(kwargs)
+            tmp["method"] = method
+            debug(YELLOW, "send request:", tmp)
+
         url = f"https://api.telegram.org/bot{self.key}/{method}"
         code, response = sync_req(url, kwargs)
+
+        if method != "getUpdates" and DEBUG:
+            tmp = deepcopy(response)
+            tmp["code"] = code
+            debug(GREEN, "get response:", tmp)
+
         return response
+
+    def get_updates(self) -> dict:
+        params = {"timeout": 60, "allowed_updates": self.allowed_updates}
+        if self.last_updated_id != 0:
+            params["offset"] = self.last_updated_id + 1
+        return self.req("getUpdates", **params)
 
     def start_polling(self):
         while True:
             updates = self.get_updates()
             for update in updates.get("result", []):
-                update_type, update_data = self._identify_update_type(update)
-                if update_type:
-                    self._process_update(update_type, update_data)
-                self.last_updated_id = update["update_id"]
+                if update["update_id"] > self.last_updated_id:
+                    self.handle_update(MiniGramUpdate(update))
+                    self.last_updated_id = update["update_id"]
+                else:
+                    print(
+                        f"{RED}{now()} - skip update with update_id <= self.last_updated_id {RESET}"
+                    )
             time.sleep(0.01)
 
-    def _identify_update_type(self, update: dict) -> Tuple[Optional[str], Optional[dict]]:
-        update_types = self.allowed_updates
-        for update_type in update_types:
-            if update_type in update:
-                return update_type, update[update_type]
-        return None, None
-
-    def _process_update(self, update_type: str, update_data: dict):
-        handler_method = f"handle_{update_type}"
-        if hasattr(self, handler_method):
-            getattr(self, handler_method)(update_data)
-        else:
-            print(f"No handler implemented for update type: {update_type}")
-
-    def handle_message(self, message_data: dict):
-        msg = MiniGramMessage({"message": message_data})
-        res = self.incoming(msg)
-        if res:
-            self.reply_to_message(res)
-
-    def handle_edited_message(self, message_data: dict):
-        msg = MiniGramMessage({"message": message_data})
-        res = self.edited(msg)
-        if res:
-            self.reply_to_message(res)
-
-    def get_updates(self) -> dict:
-        params = {
-            "timeout": 60,
-            "allowed_updates": self.allowed_updates
-        }
-        if self.last_updated_id != 0:
-            params["offset"] = self.last_updated_id + 1
-        return self.req("getUpdates", **params)
+    def handle_update(self, update: MiniGramUpdate):
+        pass
 
     def send_text(
         self, chat_id: int, text: str, parse_mode: str = "HTML", **kwargs
@@ -283,13 +294,29 @@ class MiniGram(BaseMiniGram):
             "sendMessage", chat_id=chat_id, text=text, parse_mode=parse_mode, **kwargs
         )
 
-    def reply_to_message(self, reply: MiniGramMessage):
-        reply_params = {
-            "chat_id": reply.chat_id,
-            "text": reply.text,
-            "reply_to_message_id": reply.message_id,
+    def reply(self, update: MiniGramUpdate, text: str = "") -> dict:
+        params = {
+            "chat_id": update.chat_id,
+            "reply_to_message_id": update.message_id,
+            "text": text,
         }
-        return self.req("sendMessage", **reply_params)
+        return self.req("sendMessage", **params)
+
+    def send_chat_action(self, chat_id: Any, action, **kwargs):
+        if isinstance(chat_id, MiniGramUpdate):
+            chat_id = chat_id.chat_id
+        return self.req("sendChatAction", chat_id=chat_id, action=action, **kwargs)
+
+    def set_message_reaction(
+        self, update: MiniGramUpdate, reaction: str = "", is_big=False
+    ):
+        params = {
+            "chat_id": update.chat_id,
+            "message_id": update.message_id,
+            "reaction": [{"type": "emoji", "emoji": reaction}],
+            "is_big": is_big,
+        }
+        return self.req("setMessageReaction", **params)
 
     def set_webhook(self, url: str) -> dict:
         return self.req("setWebhook", url=url)
@@ -301,10 +328,7 @@ class MiniGram(BaseMiniGram):
         return self.req("getWebhookInfo")
 
     def sync_handler(self, data: dict) -> None:
-        msg = MiniGramMessage(data)
-        res = self.incoming(msg)
-        if res:
-            self.reply_to_message(res)
+        self.handle_update(MiniGramUpdate(data))
 
 
 CURRENT_ASYNC: AsyncMiniGram | None = None

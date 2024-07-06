@@ -4,9 +4,7 @@ from .main import AsyncMiniGram
 
 
 class StarletteMiniGram(AsyncMiniGram):
-    async def starlette_handler(
-            self, request: Request
-    ) -> Response:
+    async def starlette_handler(self, request: Request) -> Response:
         try:
             data = await request.json()
             await self.async_handler(data)

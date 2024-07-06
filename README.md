@@ -28,16 +28,29 @@ Using MiniGram is as easy as 1-2-3! Here are a few examples to get you started:
 from minigram import MiniGram
 
 class MyAwesomeBot(MiniGram):
-    def incoming(self, msg):
-        if msg.text == "/start":
-            return msg.reply("Welcome to my awesome bot! 🎉")
-        self.send_text(msg.chat_id, "I don't understand that command. 😕")
+    def handle_update(self, update):
+        match update.update_type:
+            case "message":
+                match update.text:
+                    case "/sync" | "/async":
+                        self.reply(update, "I'm a bot, for sure! ⚙️")
+                    case _:
+                        self.send_text(
+                            update.from_id,
+                            f"I don't understand that command. 😕\nBut your id = {update.from_id}",
+                        )
 
-    def edited(self, msg):
-        return msg.reply("I see you edited the message!")
+            case "message_reaction":
+                self.reply(update, "I see you like this message!")
 
-bot = MyAwesomeBot("YOUR_BOT_TOKEN")
+            case "edited_message":
+                self.set_message_reaction(update, "👀")
+
+
+bot = MyAwesomeBot(YOUR_BBOT_TOKEN)
+bot.send_text(CHAT_ID, "Hello from an bot! 🚀")
 bot.start_polling()
+
 ```
 
 In just a few lines of code, you've created a bot that responds to the "/start" command. How cool is that? 😎
@@ -71,17 +84,30 @@ import asyncio
 from minigram import AsyncMiniGram
 
 class MyAsyncBot(AsyncMiniGram):
-    async def incoming(self, msg):
-        if msg.text == "/sync":
-            return msg.reply("I'm a asynchronous bot, for sure! ⚙️")
+    async def handle_update(self, update):
+        match update.update_type:
+            case "message":
+                match update.text:
+                    case "/sync" | "/async":
+                        await self.reply(update, "I'm a asynchronous bot, for sure! ⚙️")
+                    case _:
+                        await self.send_text(
+                            update.from_id,
+                            f"I don't understand that command. 😕\nBut your id = {update.from_id}",
+                        )
 
-    async def edited(self, msg):
-        return msg.reply("I see you edited the message!")
+            case "message_reaction":
+                await self.reply(update, "I see you like this message!")
+
+            case "edited_message":
+                await self.set_message_reaction(update, "👀")
+
 
 async def main():
-    bot = MyAsyncBot("YOUR_BOT_TOKEN")
-    await bot.send_text(YOUR_CHAT_ID, "Hello from an asynchronous bot! 🚀")
+    bot = MyAsyncBot(BOT_TOKEN)
+    await bot.send_text(CHAT_ID, "Hello from an asynchronous bot! 🚀")
     await bot.start_polling()
+
 
 if __name__ == "__main__":
     asyncio.run(main())
