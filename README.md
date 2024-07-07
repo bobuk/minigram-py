@@ -27,6 +27,10 @@ Using MiniGram is as easy as 1-2-3! Here are a few examples to get you started:
 ```python
 from minigram import MiniGram
 
+YOUR_BOT_TOKEN = "0:0"
+CHAT_ID = 0
+
+
 class MyAwesomeBot(MiniGram):
     def handle_update(self, update):
         match update.update_type:
@@ -37,7 +41,8 @@ class MyAwesomeBot(MiniGram):
                     case _:
                         self.send_text(
                             update.from_id,
-                            f"I don't understand that command. 😕\nBut your id = {update.from_id}",
+                            f"I don't understand that command. 😕\n"
+                            f"But your id = {update.from_id}",
                         )
 
             case "message_reaction":
@@ -47,7 +52,7 @@ class MyAwesomeBot(MiniGram):
                 self.set_message_reaction(update, "👀")
 
 
-bot = MyAwesomeBot(YOUR_BBOT_TOKEN)
+bot = MyAwesomeBot(YOUR_BOT_TOKEN)
 bot.send_text(CHAT_ID, "Hello from an bot! 🚀")
 bot.start_polling()
 
@@ -62,12 +67,14 @@ from starlette.applications import Starlette
 from starlette.routing import Route
 from minigram import StarletteMiniGram
 
+YOUR_BOT_TOKEN = "0:0"
+
 class MyStarletteBot(StarletteMiniGram):
     async def incoming(self, msg):
         if msg.text == "/hello":
             return msg.reply("Hello from Starlette! 👋")
 
-bot = MyStarletteBot("YOUR_BOT_TOKEN")
+bot = MyStarletteBot(YOUR_BOT_TOKEN)
 bot.set_webhook("https://yourwebsite.com/webhook")
 
 app = Starlette(debug=True, routes=[
@@ -83,6 +90,9 @@ This example shows how seamlessly MiniGram integrates with Starlette, allowing y
 import asyncio
 from minigram import AsyncMiniGram
 
+YOUR_BOT_TOKEN = "0:0"
+CHAT_ID = 0
+
 class MyAsyncBot(AsyncMiniGram):
     async def handle_update(self, update):
         match update.update_type:
@@ -93,7 +103,8 @@ class MyAsyncBot(AsyncMiniGram):
                     case _:
                         await self.send_text(
                             update.from_id,
-                            f"I don't understand that command. 😕\nBut your id = {update.from_id}",
+                            f"I don't understand that command. 😕\n"
+                            f"But your id = {update.from_id}",
                         )
 
             case "message_reaction":
@@ -104,7 +115,7 @@ class MyAsyncBot(AsyncMiniGram):
 
 
 async def main():
-    bot = MyAsyncBot(BOT_TOKEN)
+    bot = MyAsyncBot(YOUR_BOT_TOKEN)
     await bot.send_text(CHAT_ID, "Hello from an asynchronous bot! 🚀")
     await bot.start_polling()
 
