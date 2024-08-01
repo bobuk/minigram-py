@@ -6,7 +6,7 @@ import time
 from copy import deepcopy
 from typing import Optional, Any
 
-from .request import sync_req, async_req
+from .request import async_req
 
 DEBUG = False
 ALLOWED_UPDATES = [
@@ -250,6 +250,8 @@ class MiniGram(BaseMiniGram):
         return CURRENT_SYNC
 
     def req(self, method: str, **kwargs) -> dict:
+        from .request import sync_req
+        
         if method != "getUpdates" and DEBUG:
             tmp = deepcopy(kwargs)
             tmp["method"] = method
