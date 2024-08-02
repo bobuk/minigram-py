@@ -1,4 +1,5 @@
 import asyncio
+import importlib.util
 import json
 import re
 import time
@@ -6,7 +7,11 @@ import time
 from copy import deepcopy
 from typing import Optional, Any
 
-from .request import sync_req, async_req
+from .request import async_req
+
+if not importlib.util.find_spec("aiohttp"):
+    from .request import sync_req
+    
 
 DEBUG = False
 ALLOWED_UPDATES = [
