@@ -1,4 +1,5 @@
 import asyncio
+import importlib.util
 import json
 import re
 import time
@@ -7,6 +8,10 @@ from copy import deepcopy
 from typing import Optional, Any
 
 from .request import async_req
+
+if not importlib.util.find_spec("aiohttp"):
+    from .request import sync_req
+    
 
 DEBUG = False
 ALLOWED_UPDATES = [
@@ -250,8 +255,6 @@ class MiniGram(BaseMiniGram):
         return CURRENT_SYNC
 
     def req(self, method: str, **kwargs) -> dict:
-        from .request import sync_req
-        
         if method != "getUpdates" and DEBUG:
             tmp = deepcopy(kwargs)
             tmp["method"] = method
