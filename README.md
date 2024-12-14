@@ -84,6 +84,32 @@ app = Starlette(debug=True, routes=[
 
 This example shows how seamlessly MiniGram integrates with Starlette, allowing you to create a webhook endpoint for your bot in no time! 🌐
 
+### FastAPI Integration
+
+```python
+from fastapi import FastAPI, Request
+from minigram import FastAPIMiniGram
+from fastapi.responses import JSONResponse
+
+class MyFastAPIBot(FastAPIMiniGram):
+    async def incoming(self, msg):
+        if msg.text == "/hello":
+            return await msg.reply("Hello from FastAPI! 👋")
+
+bot = MyFastAPIBot("YOUR_BOT_TOKEN")
+bot.set_webhook("https://yourwebsite.com/webhook")
+
+app = FastAPI()
+
+@app.post("/webhook")
+async def webhook(request: Request):
+    return await bot.fastapi_handler(request)
+```
+
+MiniGram supports both asynchronous and synchronous methods for FastAPI, giving you the flexibility to choose the best approach for your application. Whether you prefer async or sync, MiniGram has got you covered! 🌐
+
+
+
 ### Asynchronous Mode
 
 ```python
