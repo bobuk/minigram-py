@@ -1,6 +1,6 @@
 [project]
 name = "minigram-py"
-version = "0.3.0"
+version = "0.4.0"
 description = "minimalistic telegram bot framework that can be used in AWS Lambda or anywhere"
 authors = [{ name = "Grigory Bakunov", email = "bobuk@rubedo.cloud" }]
 dependencies = []
@@ -12,6 +12,7 @@ license = { text = "MIT" }
 starlette = ["starlette>=0.37.2"]
 aiohttp = ["aiohttp>=3.9.3"]
 httpx = ["httpx>=0.18.0"]
+fastapi = ["fastapi>=0.73.0"]
 
 [build-system]
 requires = ["pdm-backend"]
