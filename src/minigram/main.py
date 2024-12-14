@@ -5,7 +5,7 @@ import re
 import time
 
 from copy import deepcopy
-from typing import Optional, Any
+from typing import Any
 
 from .request import async_req
 
