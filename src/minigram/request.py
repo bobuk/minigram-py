@@ -120,4 +120,4 @@ else:
                 response_data = response.read()
                 return status_code, json.loads(response_data.decode("utf-8"))
         except urllib.error.URLError as e:
-            return e.code, {"result": e.reason}
+            return e.errno, {"result": e.reason}
