@@ -199,11 +199,12 @@ class AsyncMiniGram(BaseMiniGram):
             "sendMessage", chat_id=chat_id, text=text, parse_mode=parse_mode, **kwargs
         )
 
-    async def reply(self, update: MiniGramUpdate, text: str = "") -> dict:
+    async def reply(self, update: MiniGramUpdate, text: str = "", **kwargs) -> dict:
         params = {
             "chat_id": update.chat_id,
             "reply_to_message_id": update.message_id,
             "text": text,
+            **kwargs
         }
         return await self.req("sendMessage", **params)
 
@@ -299,11 +300,12 @@ class MiniGram(BaseMiniGram):
             "sendMessage", chat_id=chat_id, text=text, parse_mode=parse_mode, **kwargs
         )
 
-    def reply(self, update: MiniGramUpdate, text: str = "") -> dict:
+    def reply(self, update: MiniGramUpdate, text: str = "", **kwargs) -> dict:
         params = {
             "chat_id": update.chat_id,
             "reply_to_message_id": update.message_id,
             "text": text,
+            **kwargs
         }
         return self.req("sendMessage", **params)
 
