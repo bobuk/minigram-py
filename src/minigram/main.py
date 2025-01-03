@@ -91,6 +91,11 @@ def debug(color, title, data):
         print(f"\n{color}{now()} - {title}{RESET}\n{json.dumps(data, indent=2)}")
 
 
+def dprint(*args, **kwargs):
+    if DEBUG:
+        print(*args, **kwargs)
+
+
 class MiniGramUpdate:
     def __init__(self, data: dict):
         for update_type in ALLOWED_UPDATES:
@@ -114,7 +119,7 @@ class MiniGramUpdate:
 
         debug(RED, "raw update:", data)
         delattr(self, "payload")
-        print(self)
+        dprint(self)
 
     def __repr__(self):
         return f"<MiniGramUpdate with type `{self.update_type}` from {self.from_id}/{self.from_user} {self.chat_id} {self.message_id} {self.text}>"
@@ -126,7 +131,7 @@ class BaseMiniGram:
         self.last_updated_id = 0
         self.post_init()
         self.allowed_updates = ALLOWED_UPDATES
-        print(f"Start time: {now()}\nDEBUG is {DEBUG}")
+        dprint(f"Start time: {now()}\nDEBUG is {DEBUG}")
 
     def post_init(self):
         pass
@@ -178,7 +183,7 @@ class AsyncMiniGram(BaseMiniGram):
                     await self.handle_update(MiniGramUpdate(update))
                     self.last_updated_id = update["update_id"]
                 else:
-                    print(f"{RED}{now()} - skip update with update_id <= self.last_updated_id {RESET}")
+                    dprint(f"{RED}{now()} - skip update with update_id <= self.last_updated_id {RESET}")
             await asyncio.sleep(0.1)
 
     async def handle_update(self, update: MiniGramUpdate):
@@ -265,7 +270,7 @@ class MiniGram(BaseMiniGram):
                     self.handle_update(MiniGramUpdate(update))
                     self.last_updated_id = update["update_id"]
                 else:
-                    print(f"{RED}{now()} - skip update with update_id <= self.last_updated_id {RESET}")
+                    dprint(f"{RED}{now()} - skip update with update_id <= self.last_updated_id {RESET}")
             time.sleep(0.01)
 
     def handle_update(self, update: MiniGramUpdate):
