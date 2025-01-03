@@ -3,6 +3,8 @@ import asyncio.exceptions
 import importlib.util
 import json
 import ssl
+import urllib.error
+import urllib.request
 from typing import Dict, Optional, Tuple
 from urllib.parse import urlparse
 
@@ -12,9 +14,7 @@ if importlib.util.find_spec("aiohttp"):
     async def async_req(url: str, data: Optional[dict] = None) -> Tuple[int, dict]:
         try:
             async with aiohttp.ClientSession() as client:
-                async with client.post(
-                    url, json=data, headers={"content-type": "application/json"}
-                ) as response:
+                async with client.post(url, json=data, headers={"content-type": "application/json"}) as response:
                     return response.status, await response.json()
         except asyncio.exceptions.TimeoutError:
             return 200, {"result": []}
@@ -71,9 +71,7 @@ else:
         rb += "\r\n\r\n"
         request = rb.encode("utf-8") + body
 
-        scheme = (
-            ssl._create_unverified_context() if parsed_url.scheme == "https" else None
-        )
+        scheme = ssl._create_unverified_context() if parsed_url.scheme == "https" else None
         reader, writer = await asyncio.open_connection(host, port, ssl=scheme)
         writer.write(request)
         await writer.drain()
@@ -103,21 +101,14 @@ else:
         response_json = json.loads(response_data.decode("utf-8"))
         return status_code, response_json
 
-    import urllib.request
-    import urllib.error
-
     def sync_req(url: str, data: Optional[dict] = None) -> Tuple[int, dict]:
         headers = {"content-type": "application/json"}
         try:
             ssl_context = ssl._create_unverified_context()
-            req = urllib.request.Request(
-                url, data=json.dumps(data).encode("utf-8"), headers=headers
-            )
-            with urllib.request.urlopen(
-                req, timeout=180, context=ssl_context
-            ) as response:
+            req = urllib.request.Request(url, data=json.dumps(data).encode("utf-8"), headers=headers)
+            with urllib.request.urlopen(req, timeout=180, context=ssl_context) as response:
                 status_code = response.getcode()
                 response_data = response.read()
                 return status_code, json.loads(response_data.decode("utf-8"))
         except urllib.error.URLError as e:
-            return e.errno, {"result": e.reason}
+            return int(e.errno) if e.errno else 200, {"result": e.reason}

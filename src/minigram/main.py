@@ -1,17 +1,11 @@
 import asyncio
-import importlib.util
 import json
 import re
 import time
-
 from copy import deepcopy
 from typing import Any
 
-from .request import async_req
-
-if not importlib.util.find_spec("aiohttp"):
-    from .request import sync_req
-    
+from .request import async_req, sync_req
 
 DEBUG = False
 ALLOWED_UPDATES = [
@@ -184,40 +178,25 @@ class AsyncMiniGram(BaseMiniGram):
                     await self.handle_update(MiniGramUpdate(update))
                     self.last_updated_id = update["update_id"]
                 else:
-                    print(
-                        f"{RED}{now()} - skip update with update_id <= self.last_updated_id {RESET}"
-                    )
+                    print(f"{RED}{now()} - skip update with update_id <= self.last_updated_id {RESET}")
             await asyncio.sleep(0.1)
 
     async def handle_update(self, update: MiniGramUpdate):
         pass
 
-    async def send_text(
-        self, chat_id: int, text: str, parse_mode: str = "HTML", **kwargs
-    ) -> dict:
-        return await self.req(
-            "sendMessage", chat_id=chat_id, text=text, parse_mode=parse_mode, **kwargs
-        )
+    async def send_text(self, chat_id: int, text: str, parse_mode: str = "HTML", **kwargs) -> dict:
+        return await self.req("sendMessage", chat_id=chat_id, text=text, parse_mode=parse_mode, **kwargs)
 
     async def reply(self, update: MiniGramUpdate, text: str = "", **kwargs) -> dict:
-        params = {
-            "chat_id": update.chat_id,
-            "reply_to_message_id": update.message_id,
-            "text": text,
-            **kwargs
-        }
+        params = {"chat_id": update.chat_id, "reply_to_message_id": update.message_id, "text": text, **kwargs}
         return await self.req("sendMessage", **params)
 
     async def send_chat_action(self, chat_id, action, **kwargs):
         if isinstance(chat_id, MiniGramUpdate):
             chat_id = chat_id.chat_id
-        return await self.req(
-            "sendChatAction", chat_id=chat_id, action=action, **kwargs
-        )
+        return await self.req("sendChatAction", chat_id=chat_id, action=action, **kwargs)
 
-    async def set_message_reaction(
-        self, update: MiniGramUpdate, reaction: str = "", is_big=False
-    ):
+    async def set_message_reaction(self, update: MiniGramUpdate, reaction: str = "", is_big=False):
         params = {
             "chat_id": update.chat_id,
             "message_id": update.message_id,
@@ -262,6 +241,7 @@ class MiniGram(BaseMiniGram):
             debug(YELLOW, "send request:", tmp)
 
         url = f"https://api.telegram.org/bot{self.key}/{method}"
+
         code, response = sync_req(url, kwargs)
 
         if method != "getUpdates" and DEBUG:
@@ -285,28 +265,17 @@ class MiniGram(BaseMiniGram):
                     self.handle_update(MiniGramUpdate(update))
                     self.last_updated_id = update["update_id"]
                 else:
-                    print(
-                        f"{RED}{now()} - skip update with update_id <= self.last_updated_id {RESET}"
-                    )
+                    print(f"{RED}{now()} - skip update with update_id <= self.last_updated_id {RESET}")
             time.sleep(0.01)
 
     def handle_update(self, update: MiniGramUpdate):
         pass
 
-    def send_text(
-        self, chat_id: int, text: str, parse_mode: str = "HTML", **kwargs
-    ) -> dict:
-        return self.req(
-            "sendMessage", chat_id=chat_id, text=text, parse_mode=parse_mode, **kwargs
-        )
+    def send_text(self, chat_id: int, text: str, parse_mode: str = "HTML", **kwargs) -> dict:
+        return self.req("sendMessage", chat_id=chat_id, text=text, parse_mode=parse_mode, **kwargs)
 
     def reply(self, update: MiniGramUpdate, text: str = "", **kwargs) -> dict:
-        params = {
-            "chat_id": update.chat_id,
-            "reply_to_message_id": update.message_id,
-            "text": text,
-            **kwargs
-        }
+        params = {"chat_id": update.chat_id, "reply_to_message_id": update.message_id, "text": text, **kwargs}
         return self.req("sendMessage", **params)
 
     def send_chat_action(self, chat_id: Any, action, **kwargs):
@@ -314,9 +283,7 @@ class MiniGram(BaseMiniGram):
             chat_id = chat_id.chat_id
         return self.req("sendChatAction", chat_id=chat_id, action=action, **kwargs)
 
-    def set_message_reaction(
-        self, update: MiniGramUpdate, reaction: str = "", is_big=False
-    ):
+    def set_message_reaction(self, update: MiniGramUpdate, reaction: str = "", is_big=False):
         params = {
             "chat_id": update.chat_id,
             "message_id": update.message_id,
