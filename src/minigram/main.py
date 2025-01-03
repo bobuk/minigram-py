@@ -97,28 +97,31 @@ def dprint(*args, **kwargs):
 
 
 class MiniGramUpdate:
-    def __init__(self, data: dict):
+    def __init__(self, data: dict, need_payload=False):
+        pl = {}
+        self.update_type = "unknown"
         for update_type in ALLOWED_UPDATES:
             if update_type in data:
+                pl = deepcopy(data[update_type])
                 self.update_type = update_type
-                self.payload = deepcopy(data[update_type])
                 break
-        if not hasattr(self, "update_type"):
+        if not pl:
             raise ValueError("unknown or unallowed update_type")
 
         self.update_id = extract_value(data, "update_id")
-        self.chat_id = extract_value(self.payload, "chat.id")
-        self.text = extract_value(self.payload, "text")
-        self.message_id = extract_value(self.payload, "message_id")
-        self.from_user = extract_value(self.payload, "from", {})
-        self.user = extract_value(self.payload, "user", {})
+        self.chat_id = extract_value(pl, "chat.id")
+        self.text = extract_value(pl, "text")
+        self.message_id = extract_value(pl, "message_id")
+        self.from_user = extract_value(pl, "from", {})
+        self.user = extract_value(pl, "user", {})
         if len(self.from_user) > 0:
             self.from_id = self.from_user.get("id")
         else:
             self.from_id = self.user.get("id")
 
         debug(RED, "raw update:", data)
-        delattr(self, "payload")
+
+        self.payload: dict | None = pl if need_payload else None
         dprint(self)
 
     def __repr__(self):
@@ -126,8 +129,9 @@ class MiniGramUpdate:
 
 
 class BaseMiniGram:
-    def __init__(self, key: str):
+    def __init__(self, key: str, need_payload=False):
         self.key = key
+        self.need_payload = need_payload
         self.last_updated_id = 0
         self.post_init()
         self.allowed_updates = ALLOWED_UPDATES
@@ -138,9 +142,9 @@ class BaseMiniGram:
 
 
 class AsyncMiniGram(BaseMiniGram):
-    def __init__(self, key: str):
+    def __init__(self, key: str, need_payload=False):
         global CURRENT_ASYNC
-        super().__init__(key)
+        super().__init__(key, need_payload)
         CURRENT_ASYNC = self
 
     async def shutdown(self):
@@ -180,7 +184,7 @@ class AsyncMiniGram(BaseMiniGram):
             updates = await self.get_updates()
             for update in updates.get("result", []):
                 if update["update_id"] > self.last_updated_id:
-                    await self.handle_update(MiniGramUpdate(update))
+                    await self.handle_update(MiniGramUpdate(update, need_payload=self.need_payload))
                     self.last_updated_id = update["update_id"]
                 else:
                     dprint(f"{RED}{now()} - skip update with update_id <= self.last_updated_id {RESET}")
@@ -224,9 +228,9 @@ class AsyncMiniGram(BaseMiniGram):
 
 
 class MiniGram(BaseMiniGram):
-    def __init__(self, key: str):
+    def __init__(self, key: str, need_payload=False):
         global CURRENT_SYNC
-        super().__init__(key)
+        super().__init__(key, need_payload=need_payload)
         CURRENT_SYNC = self
 
     def shutdown(self):
@@ -267,7 +271,7 @@ class MiniGram(BaseMiniGram):
             updates = self.get_updates()
             for update in updates.get("result", []):
                 if update["update_id"] > self.last_updated_id:
-                    self.handle_update(MiniGramUpdate(update))
+                    self.handle_update(MiniGramUpdate(update, need_payload=self.need_payload))
                     self.last_updated_id = update["update_id"]
                 else:
                     dprint(f"{RED}{now()} - skip update with update_id <= self.last_updated_id {RESET}")
